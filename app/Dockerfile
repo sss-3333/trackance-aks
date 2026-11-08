@@ -1,5 +1,5 @@
 # ---- Builder stage ----
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /build
 
@@ -9,7 +9,7 @@ RUN npm install --omit=dev
 COPY app/ ./
 
 # ---- Runtime stage ----
-FROM gcr.io/distroless/nodejs20-debian12:nonroot AS runtime
+FROM gcr.io/distroless/nodejs22-debian12:nonroot AS runtime
 
 WORKDIR /app
 
