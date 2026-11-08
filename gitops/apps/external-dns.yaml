@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: external-dns
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://kubernetes-sigs.github.io/external-dns/
+    chart: external-dns
+    targetRevision: 1.23.0
+    helm:
+      valuesObject:
+        provider:
+          name: azure
+        sources:
+          - ingress
+        domainFilters:
+          - labs.trackance.co.uk
+        policy: sync
+        txtOwnerId: aks-trackance
+        serviceAccount:
+          name: external-dns
+          labels:
+            azure.workload.identity/use: "true"
+          annotations:
+            azure.workload.identity/client-id: 65e443cc-b30c-4eca-91a4-a969b262faae
+        podLabels:
+          azure.workload.identity/use: "true"
+        extraVolumes:
+          - name: azure-config-file
+            secret:
+              secretName: external-dns-azure
+        extraVolumeMounts:
+          - name: azure-config-file
+            mountPath: /etc/kubernetes
+            readOnly: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: external-dns
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
