@@ -56,3 +56,4 @@ jobs:
             --namespace argocd --create-namespace \
             --version 10.14.0 \
             --wait
+          kubectl apply -f ../gitops/root.yaml

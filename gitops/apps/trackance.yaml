@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: trackance
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sss-3333/trackance-aks.git
+    targetRevision: main
+    path: gitops/trackance
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: trackance
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
