@@ -1,0 +1,51 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - ".github/workflows/build.yml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ACR_NAME: trackanceaksacr
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Log in to ACR
+        run: az acr login --name $ACR_NAME
+
+      - name: Build image
+        run: docker build -f app/Dockerfile -t $ACR_NAME.azurecr.io/trackance:${{ github.sha }} .
+
+      - name: Test image
+        run: |
+          docker run -d -p 3000:3000 $ACR_NAME.azurecr.io/trackance:${{ github.sha }}
+          curl --fail --retry 5 --retry-all-errors --retry-delay 2 http://localhost:3000
+
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.ACR_NAME }}.azurecr.io/trackance:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Push image
+        run: docker push $ACR_NAME.azurecr.io/trackance:${{ github.sha }}
