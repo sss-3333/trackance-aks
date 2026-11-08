@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trackance
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trackance
+  template:
+    metadata:
+      labels:
+        app: trackance
+    spec:
+      containers:
+        - name: trackance
+          image: trackanceaksacr.azurecr.io/trackance:6c87c487afbbe8d2ba4c6c88cadc76c81f27e4c1
+          ports:
+            - containerPort: 3000
