@@ -23,3 +23,16 @@ module "aks" {
   subnet_id           = module.network.subnet_id
   acr_id              = data.azurerm_container_registry.acr.id
 }
+
+data "azurerm_user_assigned_identity" "external_dns" {
+  name                = "id-trackance-external-dns"
+  resource_group_name = "rg-trackance-aks-bootstrap"
+}
+
+resource "azurerm_federated_identity_credential" "external_dns" {
+  name                      = "external-dns"
+  user_assigned_identity_id = data.azurerm_user_assigned_identity.external_dns.id
+  issuer                    = module.aks.oidc_issuer_url
+  audience                  = ["api://AzureADTokenExchange"]
+  subject                   = "system:serviceaccount:external-dns:external-dns"
+}
