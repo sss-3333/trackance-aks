@@ -99,3 +99,40 @@ resource "azurerm_role_assignment" "me_aks_admin" {
   principal_id         = data.azurerm_client_config.current.object_id
   principal_type       = "User"
 }
+
+resource "azurerm_dns_zone" "labs" {
+  name                = "labs.trackance.co.uk"
+  resource_group_name = azurerm_resource_group.bootstrap.name
+}
+
+data "aws_route53_zone" "parent" {
+  name = "trackance.co.uk"
+}
+
+resource "aws_route53_record" "labs_ns" {
+  zone_id = data.aws_route53_zone.parent.zone_id
+  name    = "labs.trackance.co.uk"
+  type    = "NS"
+  ttl     = 300
+  records = azurerm_dns_zone.labs.name_servers
+}
+
+resource "azurerm_user_assigned_identity" "external_dns" {
+  name                = "id-trackance-external-dns"
+  resource_group_name = azurerm_resource_group.bootstrap.name
+  location            = azurerm_resource_group.bootstrap.location
+}
+
+resource "azurerm_role_assignment" "external_dns_zone" {
+  scope                = azurerm_dns_zone.labs.id
+  role_definition_name = "DNS Zone Contributor"
+  principal_id         = azurerm_user_assigned_identity.external_dns.principal_id
+  principal_type       = "ServicePrincipal"
+}
+
+resource "azurerm_role_assignment" "external_dns_reader" {
+  scope                = azurerm_resource_group.bootstrap.id
+  role_definition_name = "Reader"
+  principal_id         = azurerm_user_assigned_identity.external_dns.principal_id
+  principal_type       = "ServicePrincipal"
+}
