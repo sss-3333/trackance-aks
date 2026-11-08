@@ -5,6 +5,13 @@ metadata:
   namespace: argocd
 spec:
   project: default
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: cert-manager-webhook
+      jsonPointers:
+        - /webhooks/0/namespaceSelector
+        - /webhooks/0/clientConfig/caBundle
   source:
     repoURL: https://charts.jetstack.io
     chart: cert-manager
