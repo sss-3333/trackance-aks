@@ -25,3 +25,77 @@ resource "azurerm_container_registry" "acr" {
   sku                 = "Basic"
   admin_enabled       = false
 }
+
+data "azurerm_subscription" "current" {}
+data "azurerm_client_config" "current" {}
+
+resource "azurerm_user_assigned_identity" "github" {
+  name                = "id-trackance-aks-github"
+  resource_group_name = azurerm_resource_group.bootstrap.name
+  location            = azurerm_resource_group.bootstrap.location
+}
+
+resource "azurerm_federated_identity_credential" "github_main" {
+  name                      = "github-main"
+  user_assigned_identity_id = azurerm_user_assigned_identity.github.id
+  issuer                    = "https://token.actions.githubusercontent.com"
+  audience                  = ["api://AzureADTokenExchange"]
+  subject                   = "repo:sss-3333@120253226/trackance-aks@1449856814:ref:refs/heads/main"
+}
+
+resource "azurerm_role_assignment" "github_contributor" {
+  scope                = data.azurerm_subscription.current.id
+  role_definition_name = "Contributor"
+  principal_id         = azurerm_user_assigned_identity.github.principal_id
+  principal_type       = "ServicePrincipal"
+}
+
+resource "azurerm_role_assignment" "github_acr_push" {
+  scope                = azurerm_container_registry.acr.id
+  role_definition_name = "AcrPush"
+  principal_id         = azurerm_user_assigned_identity.github.principal_id
+  principal_type       = "ServicePrincipal"
+}
+
+resource "azurerm_role_assignment" "github_acr_rbac_admin" {
+  scope                = azurerm_container_registry.acr.id
+  role_definition_name = "Role Based Access Control Administrator"
+  principal_id         = azurerm_user_assigned_identity.github.principal_id
+  principal_type       = "ServicePrincipal"
+  condition_version    = "2.0"
+  condition            = <<-EOT
+    (
+      (
+        !(ActionMatches{'Microsoft.Authorization/roleAssignments/write'})
+      )
+      OR
+      (
+        @Request[Microsoft.Authorization/roleAssignments:RoleDefinitionId] ForAnyOfAnyValues:GuidEquals {7f951dda-4ed3-4680-a7ca-43fe172d538d}
+      )
+    )
+    AND
+    (
+      (
+        !(ActionMatches{'Microsoft.Authorization/roleAssignments/delete'})
+      )
+      OR
+      (
+        @Resource[Microsoft.Authorization/roleAssignments:RoleDefinitionId] ForAnyOfAnyValues:GuidEquals {7f951dda-4ed3-4680-a7ca-43fe172d538d}
+      )
+    )
+  EOT
+}
+
+resource "azurerm_role_assignment" "github_aks_admin" {
+  scope                = data.azurerm_subscription.current.id
+  role_definition_name = "Azure Kubernetes Service RBAC Cluster Admin"
+  principal_id         = azurerm_user_assigned_identity.github.principal_id
+  principal_type       = "ServicePrincipal"
+}
+
+resource "azurerm_role_assignment" "me_aks_admin" {
+  scope                = data.azurerm_subscription.current.id
+  role_definition_name = "Azure Kubernetes Service RBAC Cluster Admin"
+  principal_id         = data.azurerm_client_config.current.object_id
+  principal_type       = "User"
+}
